@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="StudentGradeManagement.API/StudentGradeManagement.API.csproj" />
+  <Project Path="StudentGradeManagement.MVC/StudentGradeManagement.MVC.csproj" />
+</Solution>
