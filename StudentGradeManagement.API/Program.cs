@@ -2,17 +2,18 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using StudentGradeManagement.API.Data;
 using StudentGradeManagement.API.Models;
+using StudentGradeManagement.API.Controllers;
+using StudentGradeManagement.API.Data;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Add DbContext with SQL Server
+// 1. DbContext (SQL Server)
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// 2. Add ASP.NET Core Identity
+// 2. ASP.NET Core Identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = false;
@@ -24,9 +25,20 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-// 3. Add JWT Authentication
-var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "SuperSecretKeyForStudentGradeManagementSystem2026!";
-var key = Encoding.UTF8.GetBytes(jwtSecret);
+// 3. CORS (MVC frontend)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowMVC", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+// 4. JWT Authentication
+var jwtKey = builder.Configuration["Jwt:Key"] ?? AuthController.FallbackJwtKey;
+var key = Encoding.UTF8.GetBytes(jwtKey);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -42,15 +54,23 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(key),
         ValidateIssuer = false,
-        ValidateAudience = false
+        ValidateAudience = false,
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero,
+        RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+        NameClaimType = System.Security.Claims.ClaimTypes.Name
     };
 });
 
 builder.Services.AddControllers();
 
+// 5. Clean Swagger Setup (Iwas Namespace & Type Errors)
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
 
-// 4. Automatic Database & Initial User/Role Seeding
+// 6. Apply migrations + seed data
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -60,18 +80,25 @@ using (var scope = app.Services.CreateScope())
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
 
+        await context.Database.MigrateAsync();
         await DbSeeder.SeedAsync(context, userManager, roleManager);
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Error during database seeding: {ex.Message}");
+        Console.WriteLine($"[Startup] Database migrate/seed error: {ex.Message}");
     }
 }
 
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 app.UseHttpsRedirection();
+app.UseCors("AllowMVC");
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();

@@ -6,33 +6,37 @@ namespace StudentGradeManagement.API.Data
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-            : base(options)
-        {
-        }
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
-        public DbSet<GradeRecord> GradeRecords { get; set; }
+        public DbSet<Student> Students { get; set; }
+        public DbSet<Faculty> Faculty { get; set; }
+        public DbSet<StudentGrade> StudentGrades { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
-            // Configure GradeRecord Table Constraints
-            builder.Entity<GradeRecord>(entity =>
+            builder.Entity<Student>(entity =>
             {
-                entity.ToTable("GradeRecords");
-                entity.HasKey(g => g.GradeId);
+                entity.ToTable("Students", "dbo");
+                entity.HasKey(e => e.StudentId);
+                entity.HasIndex(e => e.StudentNumber).IsUnique();
+                entity.HasIndex(e => e.Email).IsUnique();
+            });
 
-                entity.Property(g => g.StudentId).IsRequired().HasMaxLength(20);
-                entity.Property(g => g.SubjectCode).IsRequired().HasMaxLength(20);
-                entity.Property(g => g.SubjectName).IsRequired().HasMaxLength(100);
-                entity.Property(g => g.FacultyId).IsRequired().HasMaxLength(20);
-                entity.Property(g => g.Remarks).IsRequired().HasMaxLength(20);
-                entity.Property(g => g.Semester).IsRequired().HasMaxLength(20);
-                entity.Property(g => g.SchoolYear).IsRequired().HasMaxLength(20);
+            builder.Entity<Faculty>(entity =>
+            {
+                entity.ToTable("Faculty", "dbo");
+                entity.HasKey(e => e.FacultyId);
+                entity.HasIndex(e => e.FacultyNumber).IsUnique();
+                entity.HasIndex(e => e.Email).IsUnique();
+            });
 
-                // Composite index to enforce unique grade entry per student, subject, semester, and SY
-                entity.HasIndex(g => new { g.StudentId, g.SubjectCode, g.Semester, g.SchoolYear }).IsUnique();
+            builder.Entity<StudentGrade>(entity =>
+            {
+                entity.ToTable("StudentGrades", "dbo");
+                entity.HasKey(e => e.GradeId);
+                entity.HasIndex(e => new { e.StudentId, e.SubjectCode, e.Semester, e.SchoolYear }).IsUnique();
             });
         }
     }

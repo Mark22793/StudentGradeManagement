@@ -1,50 +1,104 @@
-﻿<!DOCTYPE html>
+@using Microsoft.AspNetCore.Http
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - StudentGradeManagement.MVC</title>
-    <script type="importmap"></script>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/StudentGradeManagement.MVC.styles.css" asp-append-version="true" />
+    <title>@ViewData["Title"] - Student Grade Management</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <style>
+        :root { --brand: #2563eb; --brand-dark: #1d4ed8; }
+        body { background-color: #f1f5f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar-brand { font-weight: 700; letter-spacing: .3px; }
+        .card { border-radius: 12px; }
+        .badge { font-weight: 600; padding: .45em .7em; }
+        .summary-card { transition: transform .15s ease, box-shadow .15s ease; }
+        .summary-card:hover { transform: translateY(-3px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.1) !important; }
+        .summary-icon {
+            width: 52px; height: 52px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; font-size: 1.35rem; flex-shrink: 0;
+        }
+        .student-hero { background: linear-gradient(135deg, #059669 0%, #047857 100%); }
+        .avatar-circle {
+            width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.2);
+            display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.6rem;
+        }
+        .table thead th { font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: #64748b; }
+        .nav-link.active-portal { color:#fff !important; }
+    </style>
 </head>
-<body>
+<body class="d-flex flex-column min-vh-100">
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">StudentGradeManagement.MVC</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
+        <nav class="navbar navbar-expand-lg navbar-dark shadow-sm py-2" style="background:linear-gradient(135deg,#0f172a,#1e293b);">
+            <div class="container-fluid px-4">
+                <a class="navbar-brand text-warning" asp-controller="Home" asp-action="Index">
+                    <i class="fa-solid fa-graduation-cap me-2"></i>Grade Management System
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
+
+                <div class="collapse navbar-collapse" id="navbarMain">
+                    @{
+                        var userRole = Context.Session.GetString("UserRole");
+                        var fullName = Context.Session.GetString("FullName") ?? Context.Session.GetString("UserName");
+                        var jwtToken = Context.Session.GetString("JWToken");
+                    }
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        @if (!string.IsNullOrEmpty(userRole))
+                        {
+                            if (userRole.Equals("Faculty", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <li class="nav-item"><a class="nav-link text-white fw-semibold" asp-controller="Faculty" asp-action="Index"><i class="fa-solid fa-chalkboard-user me-1 text-info"></i> Faculty Portal</a></li>
+                            }
+                            else if (userRole.Equals("Student", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <li class="nav-item"><a class="nav-link text-white fw-semibold" asp-controller="Student" asp-action="Index"><i class="fa-solid fa-user-graduate me-1 text-success"></i> Student Portal</a></li>
+                            }
+                        }
+                    </ul>
+
+                    <ul class="navbar-nav align-items-center">
+                        @if (!string.IsNullOrEmpty(jwtToken))
+                        {
+                            <li class="nav-item me-3 text-light">
+                                <i class="fa-solid fa-circle-user me-1 text-secondary"></i> <strong class="text-white">@fullName</strong>
+                                <span class="badge @(userRole == "Faculty" ? "bg-primary" : "bg-success") ms-2">@userRole</span>
+                            </li>
+                            <li class="nav-item">
+                                <a class="btn btn-danger btn-sm px-3 shadow-sm fw-bold" asp-controller="Account" asp-action="Logout">
+                                    <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
+                                </a>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item">
+                                <a class="btn btn-primary btn-sm px-4 shadow-sm" asp-controller="Account" asp-action="Login">
+                                    <i class="fa-solid fa-right-to-bracket me-1"></i> Sign In
+                                </a>
+                            </li>
+                        }
                     </ul>
                 </div>
             </div>
         </nav>
     </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - StudentGradeManagement.MVC - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+    <main role="main" class="flex-grow-1 pb-5">
+        @RenderBody()
+    </main>
+
+    <footer class="border-top text-muted bg-white py-3 mt-auto shadow-sm">
+        <div class="container text-center text-muted small">
+            &copy; 2026 - Student Grade Management System
         </div>
     </footer>
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

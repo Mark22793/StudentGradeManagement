@@ -1,10 +1,22 @@
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Add services to the container
+// MVC
 builder.Services.AddControllersWithViews();
-builder.Services.AddHttpClient();
 
-// 2. Add Session support for storing JWT token and user details
+// HttpClient used to talk to the Web API. In Development we relax server
+// certificate validation so the self-signed localhost dev cert never blocks
+// the MVC -> API login call. (Production should use a trusted certificate.)
+builder.Services.AddHttpClient(Microsoft.Extensions.Options.Options.DefaultName)
+    .ConfigurePrimaryHttpMessageHandler(sp =>
+    {
+        var handler = new HttpClientHandler();
+        var env = sp.GetRequiredService<IWebHostEnvironment>();
+        if (env.IsDevelopment())
+            handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+        return handler;
+    });
+
+// Session stores the JWT + user details after login.
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
@@ -14,7 +26,6 @@ builder.Services.AddSession(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -26,12 +37,10 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// 3. Enable Session middleware
 app.UseSession();
 
 app.UseAuthorization();
 
-// 4. Set Default Route to Account/Login
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Account}/{action=Login}/{id?}");

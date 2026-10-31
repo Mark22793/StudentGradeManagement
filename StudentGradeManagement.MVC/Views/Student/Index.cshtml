@@ -3,21 +3,52 @@
     ViewData["Title"] = "Student Portal";
 }
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-
 <div class="container py-4">
-    <!-- Header Card -->
-    <div class="p-4 mb-4 bg-white rounded-3 shadow-sm border">
-        <h2 class="fw-bold text-success mb-1"><i class="fa-solid fa-user-graduate me-2"></i>Student Portal</h2>
-        <p class="text-muted mb-0">Student Name: <strong>@Model.StudentName</strong> | Student ID: <code>@Model.StudentId</code></p>
+    <!-- Welcome / identity -->
+    <div class="card border-0 shadow-sm mb-4 overflow-hidden">
+        <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3 student-hero">
+            <div class="d-flex align-items-center">
+                <div class="avatar-circle"><i class="fa-solid fa-user-graduate"></i></div>
+                <div class="ms-3 text-white">
+                    <div class="small text-white-50 text-uppercase fw-semibold">Welcome back</div>
+                    <h4 class="fw-bold mb-0">@Model.StudentName</h4>
+                    <div class="small">Student No: <code class="text-white bg-dark bg-opacity-25 px-2 rounded">@Model.StudentId</code></div>
+                </div>
+            </div>
+            <span class="badge bg-light text-success px-3 py-2 fs-6"><i class="fa-solid fa-shield-halved me-1"></i>View-Only Access</span>
+        </div>
     </div>
 
-    <div id="statusAlert"></div>
+    <!-- Summary -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body d-flex align-items-center">
+                <div class="summary-icon bg-primary-subtle text-primary"><i class="fa-solid fa-book"></i></div>
+                <div class="ms-3"><div class="text-muted small text-uppercase fw-semibold">Subjects</div><div class="fs-3 fw-bold" id="cardSubjects">0</div></div>
+            </div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body d-flex align-items-center">
+                <div class="summary-icon bg-success-subtle text-success"><i class="fa-solid fa-chart-line"></i></div>
+                <div class="ms-3"><div class="text-muted small text-uppercase fw-semibold">Average Grade</div><div class="fs-3 fw-bold" id="cardAverage">-</div></div>
+            </div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body d-flex align-items-center">
+                <div class="summary-icon bg-warning-subtle text-warning"><i class="fa-solid fa-circle-check"></i></div>
+                <div class="ms-3"><div class="text-muted small text-uppercase fw-semibold">Passed (&ge;75)</div><div class="fs-3 fw-bold" id="cardPassed">0</div></div>
+            </div></div>
+        </div>
+    </div>
 
-    <!-- Grade Report Card -->
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-white py-3 border-0">
-            <h5 class="fw-bold text-secondary mb-0"><i class="fa-solid fa-file-invoice me-2"></i>Academic Performance & Remarks</h5>
+    <!-- Grades -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h5 class="fw-bold text-secondary mb-0"><i class="fa-solid fa-file-invoice me-2"></i>My Academic Record</h5>
+            <div class="d-flex gap-2">
+                <select id="filterSemester" class="form-select form-select-sm" onchange="applyFilters()" style="min-width:150px"><option value="">All Semesters</option></select>
+                <select id="filterSchoolYear" class="form-select form-select-sm" onchange="applyFilters()" style="min-width:150px"><option value="">All School Years</option></select>
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -26,76 +57,114 @@
                         <tr>
                             <th>Subject Code</th>
                             <th>Subject Name</th>
-                            <th>Grade</th>
-                            <th>Remarks</th>
+                            <th>Faculty</th>
+                            <th class="text-center">Grade</th>
+                            <th class="text-center">Remarks</th>
                             <th>Semester</th>
                             <th>School Year</th>
                         </tr>
                     </thead>
-                    <tbody id="studentGradesTableBody">
-                        <!-- Dynamically populated via Fetch API -->
-                    </tbody>
+                    <tbody id="studentGradesTableBody"></tbody>
                 </table>
             </div>
+            <div id="loadingState" class="text-center py-5 d-none">
+                <div class="spinner-border text-success" role="status"></div>
+                <p class="text-muted mt-2 mb-0">Loading your grades...</p>
+            </div>
+            <div id="messageState" class="text-center py-5 d-none"></div>
         </div>
     </div>
 </div>
 
 @section Scripts {
     <script>
+        const API_URL = "https://localhost:7001/api/student/grades";
+        const jwtToken = "@Context.Session.GetString("JWToken")";
+        let allGrades = [];
+
         document.addEventListener("DOMContentLoaded", fetchMyGrades);
 
         async function fetchMyGrades() {
-            const tbody = document.getElementById("studentGradesTableBody");
-            const alertDiv = document.getElementById("statusAlert");
-            tbody.innerHTML = "";
-            alertDiv.innerHTML = "";
-
+            showLoading(true);
             try {
-                const response = await fetch("https://localhost:7001/api/student/grades");
-
-                if (response.status === 401) {
-                    alertDiv.innerHTML = `<div class="alert alert-danger shadow-sm"><i class="fa-solid fa-lock me-2"></i>Unauthorized access. Please log in again.</div>`;
-                    return;
-                }
-
-                if (response.status === 403) {
-                    alertDiv.innerHTML = `<div class="alert alert-warning shadow-sm"><i class="fa-solid fa-ban me-2"></i>Forbidden: You do not have permission to view these grades.</div>`;
-                    return;
-                }
-
-                if (!response.ok) {
-                    throw new Error("Unable to fetch grade records.");
-                }
-
-                const grades = await response.json();
-
-                if (grades.length === 0) {
-                    alertDiv.innerHTML = `<div class="alert alert-info shadow-sm"><i class="fa-solid fa-info-circle me-2"></i>No grade records found for your account.</div>`;
-                    return;
-                }
-
-                grades.forEach(g => {
-                    tbody.innerHTML += `
-                        <tr>
-                            <td class="fw-semibold">${g.subjectCode}</td>
-                            <td>${g.subjectName}</td>
-                            <td><span class="fs-6 fw-bold text-success">${g.grade}</span></td>
-                            <td><span class="badge ${getBadgeStyle(g.remarks)}">${g.remarks}</span></td>
-                            <td>${g.semester}</td>
-                            <td>${g.schoolYear}</td>
-                        </tr>`;
+                const res = await fetch(API_URL, {
+                    headers: { "Authorization": `Bearer ${jwtToken}`, "Content-Type": "application/json" }
                 });
 
+                if (res.status === 401) return message("warning","fa-lock","Your session expired. Please log in again.");
+                if (res.status === 403) return message("warning","fa-ban","You do not have permission to view these grades.");
+                if (!res.ok) throw new Error("Unable to fetch your grade records.");
+
+                allGrades = await res.json();
+                populateFilters();
+                updateSummary();
+                applyFilters();
             } catch (err) {
-                alertDiv.innerHTML = `<div class="alert alert-danger shadow-sm">${err.message}</div>`;
+                message("danger","fa-triangle-exclamation", err.message || "Something went wrong.");
+            } finally {
+                showLoading(false);
             }
         }
 
-        function getBadgeStyle(remark) {
-            if (remark === "BEP/FAILED") return "bg-danger";
-            if (remark === "CMS" || remark === "SP") return "bg-success";
-            return "bg-primary";
+        function updateSummary() {
+            const subjects = new Set(allGrades.map(g => g.subjectCode)).size;
+            const passed = allGrades.filter(g => g.grade >= 75).length;
+            const avg = allGrades.length ? (allGrades.reduce((s,g)=>s+g.grade,0)/allGrades.length) : null;
+            document.getElementById("cardSubjects").textContent = subjects;
+            document.getElementById("cardPassed").textContent = passed;
+            document.getElementById("cardAverage").textContent = avg==null ? "-" : avg.toFixed(1);
         }
+
+        function populateFilters() {
+            fill("filterSemester", [...new Set(allGrades.map(g=>g.semester))], "All Semesters");
+            fill("filterSchoolYear", [...new Set(allGrades.map(g=>g.schoolYear))], "All School Years");
+        }
+        function fill(id, vals, label){
+            const sel=document.getElementById(id); const cur=sel.value;
+            sel.innerHTML=`<option value="">${label}</option>`;
+            vals.filter(v=>v).sort().forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;sel.appendChild(o);});
+            sel.value=cur;
+        }
+
+        function applyFilters() {
+            const sem=document.getElementById("filterSemester").value;
+            const sy=document.getElementById("filterSchoolYear").value;
+            const filtered = allGrades.filter(g => (!sem||g.semester===sem) && (!sy||g.schoolYear===sy));
+            render(filtered);
+        }
+
+        function render(grades) {
+            const tbody = document.getElementById("studentGradesTableBody");
+            tbody.innerHTML = "";
+            if (!grades.length) { message("info","fa-circle-info","No grade records found for the selected filters."); return; }
+            hideMessage();
+            grades.forEach(g => {
+                tbody.insertAdjacentHTML("beforeend", `
+                    <tr>
+                        <td class="fw-semibold">${esc(g.subjectCode)}</td>
+                        <td>${esc(g.subjectName)}</td>
+                        <td class="text-muted small">${esc(g.facultyName)}</td>
+                        <td class="text-center fw-bold fs-6">${g.grade}</td>
+                        <td class="text-center"><span class="badge ${badge(g.remarks)}">${esc(g.remarks)}</span></td>
+                        <td class="small">${esc(g.semester)}</td>
+                        <td class="small">${esc(g.schoolYear)}</td>
+                    </tr>`);
+            });
+        }
+
+        function showLoading(on){
+            document.getElementById("loadingState").classList.toggle("d-none", !on);
+            if(on){ document.getElementById("studentGradesTableBody").innerHTML=""; hideMessage(); }
+        }
+        function message(type,icon,msg){
+            const map={danger:"alert-danger",warning:"alert-warning",info:"alert-info"};
+            const el=document.getElementById("messageState");
+            el.className="text-center py-5";
+            el.innerHTML=`<div class="alert ${map[type]||'alert-info'} d-inline-flex align-items-center shadow-sm mb-0"><i class="fa-solid ${icon} me-2"></i>${esc(msg)}</div>`;
+            el.classList.remove("d-none");
+        }
+        function hideMessage(){ const el=document.getElementById("messageState"); el.classList.add("d-none"); el.innerHTML=""; }
+        function badge(r){ if(r==="BEP/FAILED")return "bg-danger"; if(r==="CMS"||r==="SP")return "bg-success"; if(r==="SAP"||r==="GP")return "bg-primary"; return "bg-secondary"; }
+        function esc(s){ return (s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
     </script>
 }

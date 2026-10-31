@@ -5,10 +5,11 @@ namespace StudentGradeManagement.API.DTOs
     public class GradeResponseDto
     {
         public int GradeId { get; set; }
-        public string StudentId { get; set; } = string.Empty;
+        public string StudentNumber { get; set; } = string.Empty;
+        public string StudentName { get; set; } = string.Empty;
         public string SubjectCode { get; set; } = string.Empty;
         public string SubjectName { get; set; } = string.Empty;
-        public string FacultyId { get; set; } = string.Empty;
+        public string FacultyName { get; set; } = string.Empty;
         public int Grade { get; set; }
         public string Remarks { get; set; } = string.Empty;
         public string Semester { get; set; } = string.Empty;
